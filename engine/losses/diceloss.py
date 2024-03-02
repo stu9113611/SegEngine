@@ -38,7 +38,7 @@ class DiceLoss(torch.nn.Module):
             neg_prob = 1 - pos_prob
             probas = torch.cat([pos_prob, neg_prob], dim=1)
         else:
-            true_1_hot = torch.eye(num_classes).cuda()[target.squeeze(1)]
+            true_1_hot = torch.eye(num_classes)[target.squeeze(1)]
             true_1_hot = true_1_hot.permute(0, 3, 1, 2).float()
             probas = pred.softmax(dim=1)
         true_1_hot = true_1_hot.type(pred.type())
