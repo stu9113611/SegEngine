@@ -8,14 +8,16 @@ from typing import Union
 
 
 class IdMapVisualizer:
-    def __init__(self, categories: list[Category]) -> None:
+    def __init__(self, categories: list[Category], nrow: int = 4) -> None:
         self.categories = categories
+        self.nrow = nrow
 
     def _visualize_one(self, id_map: Union[torch.Tensor, NDArray]) -> NDArray[np.uint8]:
         """Visualize an id map (BGR) with given categories.
 
         Args:
             id_map (Union[torch.Tensor, NDArray]): A HxW map that consists of category ids.
+            nrow (int, optional): Number of visualizations in a row. Defaults to 4.
 
         Returns:
             NDArray[np.uint8]: A visualized 8-bit BGR image (HxWx3) given categories.
@@ -55,9 +57,7 @@ class IdMapVisualizer:
 
         # """Visualize a batch of index map (NxHxW) or a single index map (HxW) to a picture (HxWx3) with given palatte (categories)."""
 
-    def visualize(
-        self, id_map: Union[torch.Tensor, NDArray], nrow: int = 8
-    ) -> NDArray[np.uint8]:
+    def visualize(self, id_map: Union[torch.Tensor, NDArray]) -> NDArray[np.uint8]:
         """Visualize a batch of id map (NxHxW) or one index map (HxW) to a grid of BGR image (HxWx3) with given categories.
 
         Args:
@@ -74,7 +74,7 @@ class IdMapVisualizer:
         if len(id_map.shape) == 2:
             id_map = np.expand_dims(id_map, 0)
 
-        if id_map.shape[0] < nrow:
-            nrow = id_map.shape[0]
-
-        return self._make_grid([self._visualize_one(im) for im in id_map], nrow)
+        return self._make_grid(
+            [self._visualize_one(im) for im in id_map],
+            id_map.shape[0] if id_map.shape[0] < self.nrow else self.nrow,
+        )
