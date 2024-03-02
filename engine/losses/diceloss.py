@@ -1,3 +1,9 @@
+"""
+Code piece from
+https://github.com/kevinzakka/pytorch-goodies/blob/master/losses.py
+I did'nt own this code.
+"""
+
 import torch
 
 
