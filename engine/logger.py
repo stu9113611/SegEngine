@@ -1,19 +1,23 @@
-import colored
-
-from torch.utils.tensorboard.writer import SummaryWriter as TensorboardLogger
+import logging
+from rich.logging import RichHandler
 
 
 class Logger:
-    level = 0
+    def __init__(self) -> None:
+        FORMAT = "%(message)s"
+        logging.basicConfig(
+            level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
+        )
+        self.logger = logging.getLogger("rich")
 
-    @classmethod
-    def info(self, category: str, msg: str) -> None:
-        print(f"{colored.Fore.green}[Info] [{category}] {msg}{colored.Style.reset}")
+    def debug(self, title: str, msg: str) -> None:
+        self.logger.debug(f"[{title}] {msg}")
 
-    @classmethod
-    def warn(self, category: str, msg: str) -> None:
-        print(f"{colored.Fore.green}[Warn] [{category}] {msg}{colored.Style.reset}")
+    def info(self, title: str, msg: str) -> None:
+        self.logger.info(f"[{title}] {msg}")
 
-    @classmethod
-    def error(self, category: str, msg: str) -> None:
-        print(f"{colored.Fore.green}[Error] [{category}] {msg}{colored.Style.reset}")
+    def warn(self, title: str, msg: str) -> None:
+        self.logger.warn(f"[{title}] {msg}")
+
+    def error(self, title: str, msg: str) -> None:
+        self.logger.error(f"[{title}] {msg}")

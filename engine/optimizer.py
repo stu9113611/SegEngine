@@ -1,58 +1,78 @@
+from abc import ABC, abstractclassmethod
+from typing import Any, Optional, Protocol, Tuple
+
 import torch
 
 
-class ScheduledOptimizer:
-    def __init__(self, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.LRScheduler, warm_up_scheduler = None) -> None:
-        self.optimizer = optimizer
-        self.scheduler = scheduler
-        self.warm_up_scheduler = warm_up_scheduler
+class Optimizer(ABC):
+    """An object to optimize/update models' parameters."""
 
-    def lr(self) -> float:
-        return self.optimizer.param_groups[0]["lr"]
+    @abstractclassmethod
+    def get_lr(self) -> list[tuple[str, float]]:
+        """Get current learning rate."""
+
+    @abstractclassmethod
+    def zero_grad(self) -> None:
+        """Reset current backpropagated gradient."""
+
+    @abstractclassmethod
+    def step(self) -> None:
+        """Optimize the registered target parameters."""
+
+    @abstractclassmethod
+    def to_torch_format(self) -> torch.optim.Optimizer:
+        """Convert to pytorch format."""
+
+
+def get_torch_lr(optimizer: torch.optim.Optimizer) -> list[tuple[str, float]]:
+    return [(param["name"], param["lr"]) for param in optimizer.param_groups]
+
+
+class AdamW(Optimizer):
+    """AdamW optimizer provided by Pytorch."""
+
+    def __init__(
+        self, params: dict[str, Any], betas: tuple[float, float], weight_decay: float
+    ) -> None:
+        self.optimizer = torch.optim.AdamW(
+            params=params, betas=betas, weight_decay=weight_decay
+        )
+
+    def get_lr(self) -> list[tuple[str, float]]:
+        return get_torch_lr(self.optimizer)
 
     def zero_grad(self) -> None:
         self.optimizer.zero_grad()
 
-    def step(self, scaler) -> None:
+    def step(self, scaler=None) -> None:
         if scaler:
-            scaler.step(self.optimizer)
+            scaler.step(self.to_torch_format())
         else:
             self.optimizer.step()
 
-    def sched_step(self) -> None:
-        if self.warm_up_scheduler:
-            self.warm_up_scheduler.step()
-            if self.warm_up_scheduler.finished():
-                self.warm_up_scheduler = None
+    def to_torch_format(self) -> torch.optim.Optimizer:
+        return self.optimizer
+
+
+class SGD(Optimizer):
+    """AdamW optimizer provided by Pytorch."""
+
+    def __init__(self, params: dict[str, Any], lr: float, weight_decay: float) -> None:
+        self.optimizer = torch.optim.SGD(
+            params=params, lr=lr, weight_decay=weight_decay
+        )
+
+    def get_lr(self) -> list[tuple[str, float]]:
+        return get_torch_lr(self.optimizer)
+
+    def zero_grad(self) -> None:
+        self.optimizer.zero_grad()
+
+    def step(self, scaler=None) -> None:
+        if scaler:
+            scaler.step(self.to_torch_format())
         else:
-            self.scheduler.step()
+            self.optimizer.step()
 
-class WarmUpScheduler:
-    def __init__(self, optimizer: torch.optim.Optimizer, epochs) -> None:
-        self.optimizer = optimizer
-        self.init_lr = self.optimizer.param_groups[0]["lr"]
-        self.lr_interval = self.init_lr / epochs
-        self.optimizer.param_groups[0]["lr"] = self.lr_interval
-
-    def step(self):
-        self.optimizer.param_groups[0]["lr"] += self.lr_interval
-
-    def finished(self) -> bool:
-        return self.optimizer.param_groups[0]["lr"] > self.init_lr - self.lr_interval
-
-
-def create_adamw_polylr_optim(
-    parameters, lr, betas, weight_decay, epochs, factor
-) -> ScheduledOptimizer:
-    optim = torch.optim.AdamW(parameters, lr=lr, betas=betas, weight_decay=weight_decay)
-    scheduler = torch.optim.lr_scheduler.PolynomialLR(optim, epochs, factor)
-    return ScheduledOptimizer(optim, scheduler)
-
-
-def create_adamw_polylr_warmup_optim(
-    parameters, lr, betas, weight_decay, epochs, factor, warm_up
-):
-    optim = torch.optim.AdamW(parameters, lr=lr, betas=betas, weight_decay=weight_decay)
-    scheduler = torch.optim.lr_scheduler.PolynomialLR(optim, epochs - warm_up, factor)
-    warm_up_scheduler = WarmUpScheduler(optim, warm_up)
-    return ScheduledOptimizer(optim, scheduler, warm_up_scheduler=warm_up_scheduler)
+    def to_torch_format(self) -> torch.optim.Optimizer:
+        return self.optimizer
